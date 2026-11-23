@@ -56,7 +56,7 @@
     <label for="p2">أعد كتابتها</label>
     <input id="p2" type="password" autocomplete="new-password" />
     <button id="gen">إنشاء المفاتيح</button>
-    <p class="note">أو استعد مفاتيحك من نسخة احتياطية سابقة:</p>
+    <p class="note"><b>هاتف جديد أو مُسحت البيانات؟</b> لا تنشئ مفاتيح جديدة: استعد مفتاحك من النسخة الاحتياطية (ملف mutabaa-seller-key):</p>
     <input id="restoreFile" type="file" accept=".json,application/json" />
   </section>
 
@@ -116,7 +116,7 @@
 
     <section>
       <h2>النسخ الاحتياطي للمفتاح الخاص</h2>
-      <p class="warn">إن ضاع هذا الهاتف أو مُسحت بيانات المتصفح ضاع المفتاح، ولن تستطيع إصدار تراخيص يقبلها التطبيق. نزّل النسخة واحفظها في مكان آمن (Drive أو بريدك). النسخة مشفرة بعبارة المرور.</p>
+      <p class="warn">إن ضاع هذا الهاتف أو مُسحت بيانات المتصفح ضاع المفتاح، ولن تستطيع إصدار تراخيص يقبلها التطبيق. نزّل النسخة واحفظها في مكان آمن (Drive أو بريدك). المفتاح فيها مشفر بعبارة المرور، ومعه لائحة الزبائن. أعد تنزيلها بعد كل بيع لتبقى اللائحة كاملة.</p>
       <button id="backup">تنزيل نسخة المفتاح</button>
       <button class="bad" id="lock">إغلاق</button>
     </section>
@@ -167,7 +167,15 @@
   };
   $('restoreFile').onchange = async (e) => {
     const f = e.target.files[0]; if (!f) return;
-    try { const v = JSON.parse(await f.text()); if (!v.sealed || !v.pub) throw 0; vault = v; localStorage.setItem(STORE, JSON.stringify(v)); show('unlock'); }
+    try {
+      const v = JSON.parse(await f.text()); if (!v.sealed || !v.pub) throw 0;
+      // لائحة الزبائن المحفوظة مع النسخة تُدمج دون تكرار
+      if (Array.isArray(v.log)) {
+        const cur = JSON.parse(localStorage.getItem(LOG) || '[]'), seen = new Set(cur.map((x) => JSON.stringify(x)));
+        localStorage.setItem(LOG, JSON.stringify([...cur, ...v.log.filter((x) => !seen.has(JSON.stringify(x)))].sort((a, b) => String(b.i).localeCompare(String(a.i)))));
+      }
+      const { log: _l, ...only } = v; vault = only; localStorage.setItem(STORE, JSON.stringify(only)); show('unlock');
+    }
     catch { alert('ملف غير صالح'); }
   };
   $('open').onclick = async () => {
@@ -231,7 +239,8 @@
   };
   $('backup').onclick = () => {
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([JSON.stringify(vault, null, 1)], { type: 'application/json' }));
+    const log = JSON.parse(localStorage.getItem(LOG) || '[]');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify({ ...vault, log }, null, 1)], { type: 'application/json' }));
     a.download = `mutabaa-seller-key-${iso(new Date())}.json`; a.click();
   };
   $('reset').onclick = () => {
