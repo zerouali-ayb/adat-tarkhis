@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>أداة الترخيص</title>
+<meta name="theme-color" content="#b08a3a" />
+<link rel="manifest" href="issuer.webmanifest" />
+<link rel="canonical" href="https://zerouali-ayb.github.io/adat-tarkhis/" />
+<link rel="icon" href="issuer-192.png" />
+<link rel="apple-touch-icon" href="issuer-192.png" />
+<style>
+  :root { --brand: #1d5c60; --dark: #174c4f; --gold: #c9a24a; --cream: #fbf5e4; --line: #e5dcc5; --bad: #b42318; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #fbf8f0; color: #1b2e2f; font-family: "Noto Naskh Arabic", system-ui, sans-serif; font-size: 16px; }
+  header { background: linear-gradient(180deg, #d8b45c, #b08a3a); color: #173d40; padding: 16px; border-bottom: 4px solid var(--brand); display: flex; gap: 12px; align-items: center; }
+  header img { width: 56px; height: 56px; border-radius: 14px; box-shadow: 0 4px 12px rgba(0,0,0,.2); }
+  header h1 { margin: 0; font-size: 24px; }
+  header p { margin: 4px 0 0; font-size: 13px; opacity: .85; }
+  main { max-width: 640px; margin: 0 auto; padding: 12px; }
+  section { background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 14px; margin-bottom: 12px; }
+  h2 { margin: 0 0 8px; font-size: 18px; color: var(--dark); }
+  h2::before { content: "◆ "; color: var(--gold); font-size: 12px; }
+  label { display: block; margin: 8px 0 4px; font-weight: 700; font-size: 14px; }
+  input, select, textarea { width: 100%; font: inherit; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+  textarea { min-height: 90px; direction: ltr; font-size: 12px; }
+  button { font: inherit; font-weight: 700; border: 0; border-radius: 12px; padding: 12px 16px; background: var(--brand); color: #fff; margin-top: 10px; }
+  button.sec { background: var(--cream); color: var(--dark); border: 1px solid var(--gold); }
+  button.bad { background: #fff; color: var(--bad); border: 1px solid var(--bad); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .note { font-size: 13px; color: #6b7280; line-height: 1.7; }
+  .warn { background: #fff1e0; color: #8a4b08; padding: 10px; border-radius: 10px; font-size: 13px; line-height: 1.7; }
+  .ok { background: #e1f3e8; color: #1f7a4d; padding: 10px; border-radius: 10px; font-size: 14px; }
+  .hidden { display: none; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  td, th { border-bottom: 1px solid var(--line); padding: 6px 4px; text-align: right; }
+  code { direction: ltr; display: block; word-break: break-all; background: #f6f5f0; padding: 8px; border-radius: 8px; font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <img src="issuer-192.png" alt="" />
+  <div>
+    <h1>أداة الترخيص</h1>
+    <p>للبائع وحده · المتابعة التربوية. المفتاح الخاص يبقى مشفرا على هذا الهاتف ولا يُرسل إلى أي مكان.</p>
+  </div>
+</header>
+<main>
+  <!-- 1) إنشاء المفاتيح (مرة واحدة) -->
+  <section id="setup" class="hidden">
+    <h2>إنشاء مفتاح البائع (مرة واحدة)</h2>
+    <p class="note">ينشئ زوج مفاتيح: <b>خاص</b> يبقى هنا لتوقيع التراخيص، و<b>عام</b> يوضع في التطبيق ليتحقق منها. اختر عبارة مرور قوية تحفظها جيدا: بدونها لا يمكن إصدار تراخيص.</p>
+    <label for="p1">عبارة المرور (8 أحرف على الأقل)</label>
+    <input id="p1" type="password" autocomplete="new-password" />
+    <label for="p2">أعد كتابتها</label>
+    <input id="p2" type="password" autocomplete="new-password" />
+    <button id="gen">إنشاء المفاتيح</button>
+    <p class="note">أو استعد مفاتيحك من نسخة احتياطية سابقة:</p>
+    <input id="restoreFile" type="file" accept=".json,application/json" />
+  </section>
+
+  <!-- 2) فتح المفتاح -->
+  <section id="unlock" class="hidden">
+    <h2>فتح المفتاح</h2>
+    <label for="pw">عبارة المرور</label>
+    <input id="pw" type="password" autocomplete="current-password" />
+    <button id="open">فتح</button>
+    <p id="unlockErr" class="warn hidden"></p>
+    <button class="bad" id="reset">نسيت عبارة المرور: إنشاء مفاتيح جديدة</button>
+    <p class="note">المفاتيح الجديدة تحتاج تحديث التطبيق بمفتاحها العام، والتراخيص التي صدرت بالمفتاح القديم لن تُقبل بعد ذلك.</p>
+  </section>
+
+  <!-- 3) الإصدار -->
+  <div id="app" class="hidden">
+    <section>
+      <h2>ترخيص جديد</h2>
+      <label for="name">اسم الأستاذ(ة)</label>
+      <input id="name" placeholder="مثال: فاطمة الزهراء العلوي" />
+      <label for="code">رمز جهازه (يجده في التطبيق: الإعدادات ← الترخيص والتفعيل)</label>
+      <input id="code" dir="ltr" placeholder="ABCD-EFGH" />
+      <label><input type="checkbox" id="anyDevice" style="width:auto" /> صالح لأي جهاز (لا يُنصح به: يمكن تمريره لغيره)</label>
+      <label for="plan">المدة</label>
+      <select id="plan">
+        <option value="year">سنة واحدة</option>
+        <option value="school">إلى نهاية السنة الدراسية (31 يوليوز)</option>
+        <option value="life">دائم</option>
+        <option value="custom">تاريخ آخر…</option>
+      </select>
+      <input id="until" type="date" class="hidden" />
+      <button id="issue">إصدار المفتاح</button>
+      <div id="out" class="hidden">
+        <p class="ok" id="outInfo"></p>
+        <label>رابط التفعيل (يكفي أن يضغطه الأستاذ)</label>
+        <code id="link"></code>
+        <div class="row">
+          <button id="share">مشاركة (واتساب…)</button>
+          <button class="sec" id="copyLink">نسخ الرابط</button>
+          <button class="sec" id="copyKey">نسخ المفتاح وحده</button>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>التراخيص المصدرة</h2>
+      <table><thead><tr><th>الاسم</th><th>الجهاز</th><th>حتى</th><th>الإصدار</th></tr></thead><tbody id="log"></tbody></table>
+      <button class="sec" id="exportCsv">تصدير اللائحة (CSV)</button>
+    </section>
+
+    <section>
+      <h2>المفتاح العام (للتطبيق)</h2>
+      <p class="note">أرسل هذا النص لمن يبني التطبيق ليضعه فيه. ليس سرا.</p>
+      <code id="pub"></code>
+      <button class="sec" id="copyPub">نسخ المفتاح العام</button>
+    </section>
+
+    <section>
+      <h2>النسخ الاحتياطي للمفتاح الخاص</h2>
+      <p class="warn">إن ضاع هذا الهاتف أو مُسحت بيانات المتصفح ضاع المفتاح، ولن تستطيع إصدار تراخيص يقبلها التطبيق. نزّل النسخة واحفظها في مكان آمن (Drive أو بريدك). النسخة مشفرة بعبارة المرور.</p>
+      <button id="backup">تنزيل نسخة المفتاح</button>
+      <button class="bad" id="lock">إغلاق</button>
+    </section>
+  </div>
+</main>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const enc = new TextEncoder(), dec = new TextDecoder();
+  const b64u = (b) => { let s = ''; for (const c of new Uint8Array(b)) s += String.fromCharCode(c); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
+  const unb64u = (s) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((s.length + 3) % 4)), (c) => c.charCodeAt(0));
+  const STORE = 'mutabaa.issuer.v1', LOG = 'mutabaa.issuer.log';
+  // الأداة في موقعها المستقل (adat-tarkhis) تصدر روابط إلى عنوان التطبيق
+  const APP = location.pathname.includes('/adat-tarkhis') ? location.origin + '/al-mutabaa/' : location.href.replace(/(issuer\.html)?([?#].*)?$/, '');
+  let priv = null, vault = JSON.parse(localStorage.getItem(STORE) || 'null');
+  const show = (id) => ['setup', 'unlock', 'app'].forEach((x) => $(x).classList.toggle('hidden', x !== id));
+
+  async function kek(pass, salt) {
+    const base = await crypto.subtle.importKey('raw', enc.encode(pass), 'PBKDF2', false, ['deriveKey']);
+    return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 310000, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+  }
+  async function seal(jwk, pass) {
+    const salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await kek(pass, salt), enc.encode(JSON.stringify(jwk)));
+    return { salt: b64u(salt), iv: b64u(iv), ct: b64u(ct) };
+  }
+  async function unseal(v, pass) {
+    const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64u(v.iv) }, await kek(pass, unb64u(v.salt)), unb64u(v.ct));
+    return JSON.parse(dec.decode(pt));
+  }
+  const pubText = () => JSON.stringify(vault.pub);
+  async function openApp(jwk) {
+    priv = await crypto.subtle.importKey('jwk', jwk, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
+    $('pub').textContent = pubText();
+    renderLog(); show('app');
+  }
+
+  $('gen').onclick = async () => {
+    const p = $('p1').value;
+    if (p.length < 8) return alert('عبارة المرور قصيرة');
+    if (p !== $('p2').value) return alert('العبارتان غير متطابقتين');
+    const kp = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+    const jwkPriv = await crypto.subtle.exportKey('jwk', kp.privateKey);
+    const jwkPub = await crypto.subtle.exportKey('jwk', kp.publicKey);
+    vault = { v: 1, pub: { kty: 'EC', crv: 'P-256', x: jwkPub.x, y: jwkPub.y }, sealed: await seal(jwkPriv, p), created: new Date().toISOString() };
+    localStorage.setItem(STORE, JSON.stringify(vault));
+    await openApp(jwkPriv);
+  };
+  $('restoreFile').onchange = async (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    try { const v = JSON.parse(await f.text()); if (!v.sealed || !v.pub) throw 0; vault = v; localStorage.setItem(STORE, JSON.stringify(v)); show('unlock'); }
+    catch { alert('ملف غير صالح'); }
+  };
+  $('open').onclick = async () => {
+    try { await openApp(await unseal(vault.sealed, $('pw').value)); $('pw').value = ''; $('unlockErr').classList.add('hidden'); }
+    catch { $('unlockErr').textContent = 'عبارة المرور غير صحيحة'; $('unlockErr').classList.remove('hidden'); }
+  };
+  $('pw').onkeydown = (e) => { if (e.key === 'Enter') $('open').click(); };
+  $('plan').onchange = () => $('until').classList.toggle('hidden', $('plan').value !== 'custom');
+  $('anyDevice').onchange = () => { $('code').disabled = $('anyDevice').checked; };
+
+  const iso = (d) => d.toISOString().slice(0, 10);
+  function untilDate() {
+    const t = new Date(), p = $('plan').value;
+    if (p === 'life') return null;
+    if (p === 'year') { const d = new Date(t); d.setFullYear(d.getFullYear() + 1); return iso(d); }
+    if (p === 'school') return `${t.getMonth() >= 7 ? t.getFullYear() + 1 : t.getFullYear()}-07-31`;
+    return $('until').value || null;
+  }
+  const ALPHA = /^[2-9A-HJ-NP-Z]{8}$/;
+  let last = null;
+  $('issue').onclick = async () => {
+    const name = $('name').value.trim();
+    const code = $('anyDevice').checked ? '*' : $('code').value.toUpperCase().replace(/[^0-9A-Z]/g, '');
+    if (!name) return alert('اكتب اسم الأستاذ');
+    if (code !== '*' && !ALPHA.test(code)) return alert('رمز الجهاز 8 أحرف كما يظهر في التطبيق (مثل ABCD-EFGH)');
+    if ($('plan').value === 'custom' && !$('until').value) return alert('اختر التاريخ');
+    const payload = { v: 1, k: crypto.randomUUID().slice(0, 8), n: name, d: code === '*' ? '*' : `${code.slice(0, 4)}-${code.slice(4)}`, i: iso(new Date()), e: untilDate() };
+    const body = b64u(enc.encode(JSON.stringify(payload)));
+    const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, priv, enc.encode(body));
+    const key = `${body}.${b64u(sig)}`;
+    const link = `${APP}#/license?key=${key}`;
+    last = { key, link, payload };
+    $('link').textContent = link;
+    $('outInfo').textContent = `ترخيص ${name} · ${payload.d === '*' ? 'أي جهاز' : payload.d} · ${payload.e ? 'حتى ' + payload.e : 'دائم'}`;
+    $('out').classList.remove('hidden');
+    const log = JSON.parse(localStorage.getItem(LOG) || '[]'); log.unshift(payload); localStorage.setItem(LOG, JSON.stringify(log)); renderLog();
+  };
+  const copy = async (t, msg) => { try { await navigator.clipboard.writeText(t); alert(msg); } catch { prompt('انسخ:', t); } };
+  $('copyLink').onclick = () => last && copy(last.link, 'نُسخ الرابط');
+  $('copyKey').onclick = () => last && copy(last.key, 'نُسخ المفتاح');
+  $('copyPub').onclick = () => copy(pubText(), 'نُسخ المفتاح العام');
+  $('share').onclick = async () => {
+    if (!last) return;
+    const text = `السلام عليكم ${last.payload.n}،\nهذا رابط تفعيل تطبيق «المتابعة التربوية» على هاتفك. افتحه من الهاتف نفسه:\n${last.link}`;
+    if (navigator.share) { try { await navigator.share({ text }); return; } catch { /* أُلغيت */ } }
+    location.href = `https://wa.me/?text=${encodeURIComponent(text)}`;
+  };
+  function renderLog() {
+    const log = JSON.parse(localStorage.getItem(LOG) || '[]');
+    $('log').innerHTML = '';
+    for (const p of log) {
+      const tr = document.createElement('tr');
+      for (const v of [p.n, p.d === '*' ? 'أي جهاز' : p.d, p.e || 'دائم', p.i]) { const td = document.createElement('td'); td.textContent = v; tr.appendChild(td); }
+      $('log').appendChild(tr);
+    }
+  }
+  $('exportCsv').onclick = () => {
+    const log = JSON.parse(localStorage.getItem(LOG) || '[]');
+    const csv = '﻿' + ['الاسم,الجهاز,حتى,تاريخ الإصدار,المعرف', ...log.map((p) => [p.n, p.d, p.e || 'دائم', p.i, p.k].map((x) => `"${String(x).replace(/"/g, '""')}"`).join(','))].join('\n');
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = 'tarakhis.csv'; a.click();
+  };
+  $('backup').onclick = () => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(vault, null, 1)], { type: 'application/json' }));
+    a.download = `mutabaa-seller-key-${iso(new Date())}.json`; a.click();
+  };
+  $('reset').onclick = () => {
+    if (!confirm('ستُمحى المفاتيح الحالية من هذا الهاتف وتُنشأ أخرى جديدة. التراخيص الصادرة بالمفتاح القديم لن تُقبل بعد تحديث التطبيق. متابعة؟')) return;
+    localStorage.removeItem(STORE); vault = null; priv = null; show('setup');
+  };
+  $('lock').onclick = () => { priv = null; last = null; $('out').classList.add('hidden'); show('unlock'); };
+  show(vault ? 'unlock' : 'setup');
+})();
+</script>
+</body>
+</html>
