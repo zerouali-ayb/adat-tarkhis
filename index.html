@@ -87,7 +87,6 @@
       <input id="name" placeholder="مثال: فاطمة الزهراء العلوي" />
       <label for="code">رمز حسابه أو جهازه (يجده في التطبيق: الإعدادات ← الترخيص والتفعيل، ويصلك في رسالة الواتساب)</label>
       <input id="code" dir="ltr" placeholder="ABCD-EFGH" />
-      <label><input type="checkbox" id="anyDevice" style="width:auto" /> صالح لأي جهاز (لا يُنصح به: يمكن تمريره لغيره)</label>
       <label for="plan">المدة</label>
       <select id="plan">
         <option value="year">سنة واحدة</option>
@@ -203,7 +202,6 @@
   };
   $('pw').onkeydown = (e) => { if (e.key === 'Enter') $('open').click(); };
   $('plan').onchange = () => $('until').classList.toggle('hidden', $('plan').value !== 'custom');
-  $('anyDevice').onchange = () => { $('code').disabled = $('anyDevice').checked; };
 
   const iso = (d) => d.toISOString().slice(0, 10);
   function untilDate() {
@@ -218,9 +216,9 @@
   let last = null;
   $('issue').onclick = async () => {
     const name = $('name').value.trim();
-    const code = $('anyDevice').checked ? '*' : $('code').value.toUpperCase().replace(/[^0-9A-Z]/g, '');
+    const code = $('code').value.toUpperCase().replace(/[^0-9A-Z]/g, '');
     if (!name) return alert('اكتب اسم الأستاذ');
-    if (code !== '*' && !ALPHA.test(code)) return alert('الرمز 8 أحرف كما يظهر في التطبيق (مثل ABCD-EFGH)');
+    if (!ALPHA.test(code)) return alert('الرمز 8 أحرف كما يظهر في التطبيق (مثل ABCD-EFGH)');
     if ($('plan').value === 'custom' && !$('until').value) return alert('اختر التاريخ');
     const payload = { v: 1, k: crypto.randomUUID().slice(0, 8), n: name, d: code === '*' ? '*' : `${code.slice(0, 4)}-${code.slice(4)}`, i: iso(new Date()), e: untilDate() };
     const body = b64u(enc.encode(JSON.stringify(payload)));
@@ -279,7 +277,7 @@
       el.querySelector('.meta span').textContent = p.d === '*' ? 'أي جهاز' : p.d;
       el.querySelector('[data-a="renew"]').onclick = () => {
         $('name').value = p.n;
-        if (p.d === '*') { $('anyDevice').checked = true; $('code').disabled = true; } else { $('anyDevice').checked = false; $('code').disabled = false; $('code').value = p.d; }
+        $('code').value = p.d === '*' ? '' : p.d;
         $('plan').value = 'year'; $('plan').onchange();
         $('out').classList.add('hidden');
         $('name').scrollIntoView({ behavior: 'smooth', block: 'center' });
