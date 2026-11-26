@@ -130,7 +130,7 @@
   const unb64u = (s) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((s.length + 3) % 4)), (c) => c.charCodeAt(0));
   const STORE = 'mutabaa.issuer.v1', LOG = 'mutabaa.issuer.log';
   // الأداة في موقعها المستقل (adat-tarkhis) تصدر روابط إلى عنوان التطبيق
-  const APP = location.pathname.includes('/adat-tarkhis') ? 'https://mutabaa-tarbawiya.github.io/' : location.href.replace(/(issuer\.html)?([?#].*)?$/, '');
+  const APP = location.pathname.includes('/adat-tarkhis') ? 'https://mutabaa-tarbawiya.com/' : location.href.replace(/(issuer\.html)?([?#].*)?$/, '');
   let priv = null, vault = JSON.parse(localStorage.getItem(STORE) || 'null');
   const show = (id) => ['setup', 'unlock', 'app'].forEach((x) => $(x).classList.toggle('hidden', x !== id));
 
