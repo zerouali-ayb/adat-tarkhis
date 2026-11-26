@@ -274,7 +274,7 @@
       const el = document.createElement('div'); el.className = 'cust';
       el.innerHTML = `<div class="top"><span class="nm"></span><span class="st ${st[0]}">${st[1]}</span></div>
         <div class="meta"><span dir="ltr"></span> · ${p.e ? 'حتى ' + p.e : 'دائم'} · صدر ${p.i}${c.all.length > 1 ? ` · ${c.all.length} تراخيص` : ''}</div>
-        <div class="acts"><button class="sec" data-a="renew">تجديد</button>${rev.has(p.k) ? '<button class="sec" data-a="unrev">إلغاء التعطيل</button>' : '<button class="bad" data-a="rev">تعطيل</button>'}</div>`;
+        <div class="acts"><button class="sec" data-a="renew">تجديد</button>${rev.has(p.k) ? '<button class="sec" data-a="unrev">إلغاء التعطيل</button>' : '<button class="bad" data-a="rev">تعطيل</button>'}<button class="bad" data-a="del">حذف</button></div>`;
       el.querySelector('.nm').textContent = p.n;
       el.querySelector('.meta span').textContent = p.d === '*' ? 'أي جهاز' : p.d;
       el.querySelector('[data-a="renew"]').onclick = () => {
@@ -295,6 +295,15 @@
       if (ub) ub.onclick = () => {
         const all = new Set(c.all.map((x) => x.k)); localStorage.setItem(REV, JSON.stringify(revoked().filter((k) => !all.has(k))));
         renderLog(); showRevPanel();
+      };
+      el.querySelector('[data-a="del"]').onclick = () => {
+        const msg = rev.has(p.k)
+          ? `حذف ${p.n} من اللائحة؟ يبقى ترخيصه معطلا.`
+          : `حذف ${p.n} من اللائحة؟\n\nتنبيه: الحذف يزيله من لائحتك فقط، وترخيصه يبقى صالحا في هاتفه. إن أردت إيقاف تطبيقه فاضغط «تعطيل» أولا.`;
+        if (!confirm(msg)) return;
+        const all = new Set(c.all.map((x) => x.k));
+        localStorage.setItem(LOG, JSON.stringify(JSON.parse(localStorage.getItem(LOG) || '[]').filter((x) => !all.has(x.k))));
+        renderLog();
       };
       $('log').appendChild(el);
     }
