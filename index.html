@@ -125,6 +125,17 @@
     </section>
 
     <section>
+      <h2>ربط GitHub (تعطيل تلقائي)</h2>
+      <p class="note" id="ghState"></p>
+      <div id="ghForm">
+        <label for="ghTok">مفتاح الوصول من GitHub (يبدأ بـ github_pat_)</label>
+        <input id="ghTok" dir="ltr" placeholder="github_pat_..." autocomplete="off" />
+        <div class="row"><button id="ghSave">حفظ وتجربة الربط</button></div>
+      </div>
+      <button class="sec hidden" id="ghRemove">إزالة الربط</button>
+    </section>
+
+    <section>
       <h2>المفتاح العام (للتطبيق)</h2>
       <p class="note">أرسل هذا النص لمن يبني التطبيق ليضعه فيه. ليس سرا.</p>
       <code id="pub"></code>
@@ -149,6 +160,7 @@
   // الأداة في موقعها المستقل (adat-tarkhis) تصدر روابط إلى عنوان التطبيق
   const APP = location.pathname.includes('/adat-tarkhis') ? 'https://mutabaa-tarbawiya.com/' : location.href.replace(/(issuer\.html)?([?#].*)?$/, '');
   let priv = null, vault = JSON.parse(localStorage.getItem(STORE) || 'null');
+  let pass = null, ghToken = null; // في الذاكرة فقط أثناء فتح الأداة
   const show = (id) => ['setup', 'unlock', 'app'].forEach((x) => $(x).classList.toggle('hidden', x !== id));
 
   async function kek(pass, salt) {
@@ -180,7 +192,8 @@
     const jwkPub = await crypto.subtle.exportKey('jwk', kp.publicKey);
     vault = { v: 1, pub: { kty: 'EC', crv: 'P-256', x: jwkPub.x, y: jwkPub.y }, sealed: await seal(jwkPriv, p), created: new Date().toISOString() };
     localStorage.setItem(STORE, JSON.stringify(vault));
-    await openApp(jwkPriv);
+    pass = p;
+    await openApp(jwkPriv); renderGh();
   };
   $('restoreFile').onchange = async (e) => {
     const f = e.target.files[0]; if (!f) return;
@@ -197,7 +210,7 @@
     catch { alert('ملف غير صالح'); }
   };
   $('open').onclick = async () => {
-    try { await openApp(await unseal(vault.sealed, $('pw').value)); $('pw').value = ''; $('unlockErr').classList.add('hidden'); }
+    try { const pw = $('pw').value; await openApp(await unseal(vault.sealed, pw)); pass = pw; ghToken = vault.ghSealed ? await unseal(vault.ghSealed, pw).catch(() => null) : null; renderGh(); $('pw').value = ''; $('unlockErr').classList.add('hidden'); }
     catch { $('unlockErr').textContent = 'عبارة المرور غير صحيحة'; $('unlockErr').classList.remove('hidden'); }
   };
   $('pw').onkeydown = (e) => { if (e.key === 'Enter') $('open').click(); };
@@ -245,6 +258,35 @@
   const revoked = () => JSON.parse(localStorage.getItem(REV) || '[]');
   const revJson = () => JSON.stringify({ revoked: revoked() }, null, 1);
   const REV_EDIT = 'https://github.com/mutabaa-tarbawiya/mutabaa-tarbawiya.github.io/edit/main/revoked.json';
+  const GH_API = 'https://api.github.com/repos/mutabaa-tarbawiya/mutabaa-tarbawiya.github.io/contents/revoked.json';
+  async function ghPut(token, json) {
+    const h = { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' };
+    const g = await fetch(GH_API, { headers: h, cache: 'no-store' });
+    if (g.status === 401 || g.status === 403) throw new Error('المفتاح مرفوض أو بلا صلاحية «Contents: Read and write» على المستودع');
+    const sha = g.ok ? (await g.json()).sha : undefined;
+    const content = btoa(String.fromCharCode(...enc.encode(json)));
+    const r = await fetch(GH_API, { method: 'PUT', headers: h, body: JSON.stringify({ message: 'تحديث لائحة الإلغاءات من أداة الترخيص', content, sha }) });
+    if (!r.ok) throw new Error(`تعذر الحفظ في GitHub (${r.status})`);
+  }
+  function renderGh() {
+    const on = !!ghToken;
+    $('ghState').textContent = on ? '✓ مربوط: أزرار التعطيل وإلغاء التعطيل والحذف تحدّث لائحة الإلغاءات في موقع التطبيق تلقائيا.' : 'غير مربوط: بعد التعطيل تحتاج نسخ اللائحة ولصقها في GitHub يدويا.';
+    $('ghForm').classList.toggle('hidden', on); $('ghRemove').classList.toggle('hidden', !on);
+  }
+  $('ghSave').onclick = async () => {
+    const t = $('ghTok').value.trim();
+    if (!/^(github_pat_|ghp_)/.test(t)) return alert('الصق مفتاح الوصول كاملا كما نسخته من GitHub (يبدأ بـ github_pat_)');
+    try { await ghPut(t, revJson()); } catch (e) { return alert('لم ينجح الربط: ' + e.message); }
+    ghToken = t; vault.ghSealed = await seal(t, pass); localStorage.setItem(STORE, JSON.stringify(vault));
+    $('ghTok').value = ''; renderGh(); alert('نجح الربط ✓ صار التعطيل يتم تلقائيا.');
+  };
+  $('ghRemove').onclick = () => { if (!confirm('إزالة الربط مع GitHub من هذا الهاتف؟')) return; ghToken = null; delete vault.ghSealed; localStorage.setItem(STORE, JSON.stringify(vault)); renderGh(); };
+  /** بعد كل تغيير في التعطيل: نشر تلقائي إن كان GitHub مربوطا، وإلا لوحة النسخ اليدوي */
+  async function publishRevoked() {
+    if (!ghToken) return showRevPanel();
+    try { await ghPut(ghToken, revJson()); $('revPanel').classList.add('hidden'); alert('✓ حُدّثت لائحة الإلغاءات في موقع التطبيق. يطبّقها تطبيق الأستاذ عند أول اتصال بالإنترنت.'); }
+    catch (e) { alert('تعذر التحديث التلقائي: ' + e.message + '\nانسخ اللائحة يدويا من الأسفل.'); showRevPanel(); }
+  }
   function showRevPanel() { $('revJson').textContent = revJson(); $('revPanel').classList.remove('hidden'); $('revPanel').scrollIntoView({ behavior: 'smooth' }); }
   $('copyRev').onclick = () => copy(revJson(), 'نُسخت لائحة الإلغاءات. افتح الملف في GitHub والصقها مكان ما فيه.');
   $('openRev').onclick = () => window.open(REV_EDIT, '_blank');
@@ -287,21 +329,19 @@
       if (rb) rb.onclick = () => {
         if (!confirm(`تعطيل ترخيص ${p.n}؟ يُقفل تطبيقه عند أول اتصال بالإنترنت بعد تحديث لائحة الإلغاءات في GitHub، وتبقى بياناته محفوظة.`)) return;
         const r = new Set(revoked()); for (const x of c.all) r.add(x.k); localStorage.setItem(REV, JSON.stringify([...r]));
-        renderLog(); showRevPanel();
+        renderLog(); void publishRevoked();
       };
       const ub = el.querySelector('[data-a="unrev"]');
       if (ub) ub.onclick = () => {
         const all = new Set(c.all.map((x) => x.k)); localStorage.setItem(REV, JSON.stringify(revoked().filter((k) => !all.has(k))));
-        renderLog(); showRevPanel();
+        renderLog(); void publishRevoked();
       };
       el.querySelector('[data-a="del"]').onclick = () => {
-        const msg = rev.has(p.k)
-          ? `حذف ${p.n} من اللائحة؟ يبقى ترخيصه معطلا.`
-          : `حذف ${p.n} من اللائحة؟\n\nتنبيه: الحذف يزيله من لائحتك فقط، وترخيصه يبقى صالحا في هاتفه. إن أردت إيقاف تطبيقه فاضغط «تعطيل» أولا.`;
-        if (!confirm(msg)) return;
+        if (!confirm(`حذف ${p.n}؟\n\nيُعطَّل ترخيصه (يُقفل تطبيقه عند أول اتصال بالإنترنت، وتبقى بياناته محفوظة) ويُحذف من اللائحة.`)) return;
         const all = new Set(c.all.map((x) => x.k));
+        const r = new Set(revoked()); for (const k of all) r.add(k); localStorage.setItem(REV, JSON.stringify([...r]));
         localStorage.setItem(LOG, JSON.stringify(JSON.parse(localStorage.getItem(LOG) || '[]').filter((x) => !all.has(x.k))));
-        renderLog();
+        renderLog(); void publishRevoked();
       };
       $('log').appendChild(el);
     }
@@ -321,7 +361,7 @@
     if (!confirm('ستُمحى المفاتيح الحالية من هذا الهاتف وتُنشأ أخرى جديدة. التراخيص الصادرة بالمفتاح القديم لن تُقبل بعد تحديث التطبيق. متابعة؟')) return;
     localStorage.removeItem(STORE); vault = null; priv = null; show('setup');
   };
-  $('lock').onclick = () => { priv = null; last = null; $('out').classList.add('hidden'); show('unlock'); };
+  $('lock').onclick = () => { priv = null; last = null; pass = null; ghToken = null; $('out').classList.add('hidden'); show('unlock'); };
   show(vault ? 'unlock' : 'setup');
 })();
 </script>
